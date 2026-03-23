@@ -23,10 +23,10 @@ mod inner {
     use std::env::current_exe;
     use std::mem::size_of_val;
 
+    use windows::Win32::Foundation::{ERROR_ALREADY_EXISTS, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
+    use windows::Win32::System::Memory::{CreateFileMappingA, FILE_MAP_READ, FILE_MAP_WRITE, MapViewOfFile, PAGE_READWRITE, UnmapViewOfFile};
+    use windows::Win32::System::Threading::{OpenProcess, PROCESS_TERMINATE, TerminateProcess};
     use windows::core::PCSTR;
-    use windows::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS, HANDLE, INVALID_HANDLE_VALUE};
-    use windows::Win32::System::Memory::{CreateFileMappingA, MapViewOfFile, UnmapViewOfFile, FILE_MAP_READ, FILE_MAP_WRITE, PAGE_READWRITE};
-    use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
 
     use crate::{PidType, SingletonProcessError};
 
@@ -86,7 +86,7 @@ mod inner {
 
     use nix::errno::Errno;
     use nix::fcntl::{Flock, FlockArg};
-    use nix::sys::signal::{kill, Signal};
+    use nix::sys::signal::{Signal, kill};
     use nix::unistd::Pid;
 
     use crate::PidType;
@@ -143,8 +143,6 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
-    use if_chain::if_chain;
-
     use super::*;
 
     fn get_parent_process_exe(system: &mut sysinfo::System) -> Option<PathBuf> {
@@ -152,16 +150,14 @@ mod tests {
 
         system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing().with_exe(UpdateKind::OnlyIfNotSet));
 
-        if_chain! {
-            if let Ok(current_pid) = sysinfo::get_current_pid();
-            if let Some(current_process) = system.process(current_pid);
-            if let Some(parent_pid) = current_process.parent();
-            if let Some(parent_process) = system.process(parent_pid);
-            then {
-                parent_process.exe().map(Path::to_path_buf)
-            } else {
-                None
-            }
+        if let Ok(current_pid) = sysinfo::get_current_pid()
+            && let Some(current_process) = system.process(current_pid)
+            && let Some(parent_pid) = current_process.parent()
+            && let Some(parent_process) = system.process(parent_pid)
+        {
+            parent_process.exe().map(Path::to_path_buf)
+        } else {
+            None
         }
     }
 
@@ -207,30 +203,30 @@ mod tests {
         std::mem::forget(SingletonProcess::try_new(None, true)?);
         let current_exe = std::env::current_exe()?;
 
-        if_chain! {
-            if let Some(p) = parent_exe_pre;
-            if p == current_exe;
-            then {
-                assert!(get_parent_process_exe(&mut system).is_none());
-            } else {
-                // make process exit with code 0 on SIGTERM to avoid test failure
-                #[cfg(any(target_os = "linux", target_os = "android"))]
-                {
-                    use nix::sys::signal::*;
+        if let Some(p) = parent_exe_pre
+            && p == current_exe
+        {
+            assert!(get_parent_process_exe(&mut system).is_none());
+        } else {
+            // make process exit with code 0 on SIGTERM to avoid test failure
+            #[cfg(any(target_os = "linux", target_os = "android"))]
+            {
+                use nix::sys::signal::*;
 
-                    extern "C" fn exit_on_sigterm(signal: i32) {
-                        if signal == Signal::SIGTERM as _ {
-                            std::process::exit(0);
-                        }
+                extern "C" fn exit_on_sigterm(signal: i32) {
+                    if signal == Signal::SIGTERM as _ {
+                        std::process::exit(0);
                     }
-
-                    unsafe { signal(Signal::SIGTERM, SigHandler::Handler(exit_on_sigterm)).unwrap(); }
                 }
 
-                let mut cmd = Command::new(current_exe);
-                cmd.arg(function_name!());
-                cmd.status()?;
+                unsafe {
+                    signal(Signal::SIGTERM, SigHandler::Handler(exit_on_sigterm)).unwrap();
+                }
             }
+
+            let mut cmd = Command::new(current_exe);
+            cmd.arg(function_name!());
+            cmd.status()?;
         }
 
         Ok(())
