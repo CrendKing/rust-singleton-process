@@ -11,10 +11,10 @@ keywords = ['singleton', 'single', 'process']
 categories = ['development-tools']
 
 [dependencies]
-thiserror = { version = '2.0', default-features = false }
+thiserror = '2.0'
 
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = '0.61', default-features = false, features = [
+windows = { version = '0.62', features = [
     'Win32_Foundation',
     'Win32_Security',
     'Win32_System_Memory',
@@ -22,8 +22,8 @@ windows = { version = '0.61', default-features = false, features = [
 ] }
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
-nix = { version = '0.30', default-features = false, features = ['fs', 'signal'] }
+nix = { version = '0.30', features = ['fs', 'signal'] }
 
 [dev-dependencies]
-function_name = { version = '0.3', default-features = false }
+function_name = '0.3'
 sysinfo = { version = '0.35', default-features = false, features = ['system'] }
