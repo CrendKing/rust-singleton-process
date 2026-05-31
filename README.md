@@ -19,14 +19,14 @@ When subseqent process joins, if user chooses to favor the new process, current 
 
 On Windows, an unnamed file mapping is created on the [`Global\` namespace](https://learn.microsoft.com/en-us/windows/win32/termserv/kernel-object-namespaces). It is then memory mapped and used to hold the distinguished process ID. The handle of the file mapping is held as long as the `SingletonProcess` object is alive. The terminated process exit code is set to 0.
 
-On Linux, a lock file, created in the temp directory, is used to hold the process ID. The lock is held in sync with the object lifetime.
+On Unix platforms (Linux, Android, and macOS), a lock file, created in the temp directory, is used to hold the process ID. The lock is held in sync with the object lifetime.
 
-In both platforms, since the mechanism is tied to kernel objects (file mapping handle on Windows, file lock on Linux), and these kernel objects are automatically released upon process termination,  it is resilient to process crash.
+In both platform families, since the mechanism is tied to kernel objects (file mapping handle on Windows, file lock on Unix), and these kernel objects are automatically released upon process termination, it is resilient to process crash.
 
 ### Platform-specific group name requirement
 
 * Windows: The name can contain any character except the backslash character (\\), with no maximum length.
-* Linux: Any name satisfying the underlying file system's requirement.
+* Unix (Linux, Android, and macOS): Any name satisfying the underlying file system's requirement.
 
 ### Minimum Supported Rust Version
 
