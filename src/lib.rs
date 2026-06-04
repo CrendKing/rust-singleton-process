@@ -7,18 +7,18 @@ pub enum SingletonProcessError {
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[cfg(target_os = "windows")]
+    #[cfg(windows)]
     #[error("Windows error: {0}")]
     Windows(windows::core::Error),
 
-    #[cfg(any(target_os = "linux", target_os = "android"))]
+    #[cfg(unix)]
     #[error("POSIX error: {0}")]
     Posix(#[from] nix::errno::Errno),
 }
 
 type Result<T> = std::result::Result<T, SingletonProcessError>;
 
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 mod inner {
     use std::env::current_exe;
     use std::mem::size_of_val;
@@ -77,7 +77,7 @@ mod inner {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "android"))]
+#[cfg(unix)]
 mod inner {
     use std::env::{current_exe, temp_dir};
     use std::fs::{File, OpenOptions};
@@ -209,7 +209,7 @@ mod tests {
             assert!(get_parent_process_exe(&mut system).is_none());
         } else {
             // make process exit with code 0 on SIGTERM to avoid test failure
-            #[cfg(any(target_os = "linux", target_os = "android"))]
+            #[cfg(unix)]
             {
                 use nix::sys::signal::*;
 
